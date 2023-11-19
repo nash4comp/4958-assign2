@@ -55,7 +55,7 @@ func handleClient(conn net.Conn) {
 	hasNickname := false
 
 	// 클라이언트에게 연결 성공 메시지 안내 전송
-	welcomeMessage := "Welcome to the chat server! Use /NICK <nickname> to set your nickname.\n\r"
+	welcomeMessage := "Welcome to the chat server!\n\rUse /NICK <nickname> to set your nickname.\n\r"
 	_, err := conn.Write([]byte(welcomeMessage))
 	if err != nil {
 		fmt.Println("Failed to send welcome message to client: ", err)
@@ -130,13 +130,13 @@ func handleClient(conn net.Conn) {
 
 			// 메시지를 해당 닉네임을 가진 클라이언트에게 전송
 			sendPrivateMessage(recipientNickname, messageToSend, nickname, conn)
+		} else if hasNickname {
+			commandList := NickChangeCommand + "<nickname>\n\r" + MessageCommand + "<nickname> <message>\n\r" + ListCommand + "\n\r" + BroadcastCommand + "<message>"
+			response := "Please enter the correct command.\n\r" + commandList + newline
+			conn.Write([]byte(response))
 		} else {
-			response := "You need to set your nickname at first." + newline
-			_, err := conn.Write([]byte(response))
-			if err != nil {
-				fmt.Println("Failed to send nickname in use message to client: ", err)
-				return
-			}
+			response := "You need to set your nickname at first.\n\rUse /NICK <nickname> to set your nickname." + newline
+			conn.Write([]byte(response))
 		}
 	}
 }

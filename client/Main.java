@@ -28,7 +28,7 @@ public class Main {
                     while (true) {
                         String response = in.readLine();
                         if (response != null) {
-                            System.out.println("=> " + response);
+                            System.out.println(response);
                         }
                     }
                 } catch (IOException e) {
