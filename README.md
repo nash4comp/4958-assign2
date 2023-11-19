@@ -22,7 +22,7 @@ other connection
 ### Commands List
 - /LIST
   - This command lists only nickname of the clients who are registered nickname before calling this command.
-- /NICK <nickname>
-- /BC <message>
+- /NICK \<nickname\>
+- /BC \<message\>
   - This command broadcasts to only nickname of the clients who are registered nickname before calling this command.
-- /MSG <nickname> <message>
+- /MSG \<nickname\> \<message\>
