@@ -16,6 +16,7 @@ const (
 	NickChangeCommand = "/NICK "
 	MessageCommand    = "/MSG "
 	ListCommand       = "/LIST"
+	BroadcastCommand  = "/BC "
 )
 
 var (
@@ -107,6 +108,9 @@ func handleClient(conn net.Conn) {
 				fmt.Println("Failed to send client list to client: ", err)
 				return
 			}
+		} else if strings.HasPrefix(message, BroadcastCommand) && hasNickname {
+			// 클라이언트가 /BC 명령어를 사용하면 메시지를 브로드캐스트합니다.
+			broadcastMessage(strings.TrimPrefix(message, BroadcastCommand), nickname, conn)
 		} else {
 			response := "You need to set your nickname at first." + newline
 			_, err := conn.Write([]byte(response))
@@ -156,4 +160,25 @@ func clearScreen() {
 	cmd := exec.Command("clear") // macOS 및 Linux에서 clear 명령어 실행
 	cmd.Stdout = os.Stdout
 	cmd.Run()
+}
+
+// 클라이언트에게 받은 메시지를 모든 클라이언트에게 전송하는 함수
+func broadcastMessage(message, senderNickname string, senderConn net.Conn) {
+	clientsLock.Lock()
+	defer clientsLock.Unlock()
+
+	for clientConn, clientNickname := range clients {
+		if clientConn != nil && clientNickname != senderNickname {
+			_, err := clientConn.Write([]byte(senderNickname + ": " + message + newline))
+			if err != nil {
+				fmt.Println("Failed to send message to client: ", err)
+			}
+		} else if clientConn == senderConn {
+			// 보낸 클라이언트에게도 메시지를 표시
+			_, err := clientConn.Write([]byte("You: " + message + newline))
+			if err != nil {
+				fmt.Println("Failed to send message to client: ", err)
+			}
+		}
+	}
 }
