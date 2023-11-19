@@ -50,6 +50,7 @@ func main() {
 	}
 }
 
+// Handling the client connection
 func handleClient(conn net.Conn) {
 	defer conn.Close()
 
@@ -57,7 +58,6 @@ func handleClient(conn net.Conn) {
 	// The variable for checking if client has set nickname
 	hasNickname := false
 
-	// Sending welcome message to client when connected successfully
 	welcomeMessage := "Welcome to the chat server!\n\rUse /NICK <nickname> to set your nickname.\n\r"
 	_, err := conn.Write([]byte(welcomeMessage))
 	if err != nil {
@@ -66,7 +66,6 @@ func handleClient(conn net.Conn) {
 	}
 
 	for {
-		// Receive message from client
 		input, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {
 			fmt.Println("Client disconnected:", err)
@@ -75,22 +74,17 @@ func handleClient(conn net.Conn) {
 			return
 		}
 
-		// Remove newline character from input
 		message := strings.TrimSpace(input)
 
-		if strings.HasPrefix(message, NickChangeCommand) {
-			// Set nickname
+		switch {
+		case strings.HasPrefix(message, NickChangeCommand):
+			// Handle nickname change command
 			newNickname := strings.TrimPrefix(message, NickChangeCommand)
 			if isNicknameAvailable(newNickname) {
 				nickname = newNickname
-
-				// Mutex lock for clients map for thread safety
 				clientsLock.Lock()
-				// Store client's nickname
 				clients[conn] = nickname
-				// Mutex unlock for clients map
 				clientsLock.Unlock()
-				// Sending nickname confirmation message to client
 				response := "Your nickname is now set to: " + nickname + newline
 				hasNickname = true
 				_, err := conn.Write([]byte(response))
@@ -99,7 +93,6 @@ func handleClient(conn net.Conn) {
 					return
 				}
 			} else {
-				// Sending nickname in use message to client when nickname is already in use
 				response := "Nickname already in use. Choose a different nickname." + newline
 				_, err := conn.Write([]byte(response))
 				if err != nil {
@@ -107,9 +100,8 @@ func handleClient(conn net.Conn) {
 					return
 				}
 			}
-		} else if message == ListCommand && hasNickname {
-			// Print client list and nickname
-			// Print only nickname of clients who are already registered
+		case message == ListCommand && hasNickname:
+			// Handle list command
 			clientList := getClientList()
 			response := "Client List: " + clientList + newline
 			_, err := conn.Write([]byte(response))
@@ -117,12 +109,12 @@ func handleClient(conn net.Conn) {
 				fmt.Println("Failed to send client list to client: ", err)
 				return
 			}
-		} else if strings.HasPrefix(message, BroadcastCommand) && hasNickname {
-			// Broadcasting the message
+		case strings.HasPrefix(message, BroadcastCommand) && hasNickname:
+			// Handle broadcast message command
 			broadcastMessage(strings.TrimPrefix(message, BroadcastCommand), nickname, conn)
-		} else if strings.HasPrefix(message, MessageCommand) && hasNickname {
+		case strings.HasPrefix(message, MessageCommand) && hasNickname:
+			// Handle private message command
 			parts := strings.SplitN(strings.TrimPrefix(message, MessageCommand), " ", 2)
-			// Checking the number of arguments
 			if len(parts) != 2 {
 				response := "Usage: /MSG <nickname> <message>" + newline
 				_, err := conn.Write([]byte(response))
@@ -132,17 +124,16 @@ func handleClient(conn net.Conn) {
 				}
 				continue
 			}
-
 			recipientNickname := parts[0]
 			messageToSend := parts[1]
-
-			// Sending a private message to a specific nickname
 			sendPrivateMessage(recipientNickname, messageToSend, nickname, conn)
-		} else if hasNickname {
+		case hasNickname:
+			// Handle invalid command
 			commandList := NickChangeCommand + "<nickname>\n\r" + MessageCommand + "<nickname> <message>\n\r" + ListCommand + "\n\r" + BroadcastCommand + "<message>"
 			response := "Please enter the correct command.\n\r" + commandList + newline
 			conn.Write([]byte(response))
-		} else {
+		default:
+			// Handle the case when the user needs to set a nickname first
 			response := "You need to set your nickname at first.\n\rUse /NICK <nickname> to set your nickname." + newline
 			conn.Write([]byte(response))
 		}
