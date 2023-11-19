@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"os/exec" // exec 패키지 추가
 	"strings"
 	"sync"
 )
@@ -13,6 +15,7 @@ import (
 const (
 	NickChangeCommand = "/NICK "
 	MessageCommand    = "/MSG "
+	ListCommand       = "/LIST"
 )
 
 var (
@@ -22,6 +25,7 @@ var (
 )
 
 func main() {
+	clearScreen()
 	listener, err := net.Listen("tcp", "localhost:6666")
 	if err != nil {
 		log.Fatal("Failed to start server:", err)
@@ -46,13 +50,12 @@ func handleClient(conn net.Conn) {
 	defer conn.Close()
 
 	var nickname string
-	// var nicknameSet bool // 닉네임이 설정되었는지 여부를 나타내는 변수 추가
 
 	// 클라이언트에게 연결 성공 메시지 안내 전송
 	welcomeMessage := "Welcome to the chat server! Use /NICK <nickname> to set your nickname.\n\r"
 	_, err := conn.Write([]byte(welcomeMessage))
 	if err != nil {
-		fmt.Println("Failed to send welcome message to client:", err)
+		fmt.Println("Failed to send welcome message to client: ", err)
 		return
 	}
 
@@ -73,7 +76,10 @@ func handleClient(conn net.Conn) {
 			newNickname := strings.TrimPrefix(message, NickChangeCommand)
 			if isNicknameAvailable(newNickname) {
 				nickname = newNickname
-				// nicknameSet = true // 닉네임이 설정됨을 표시
+				// 클라이언트의 닉네임을 저장
+				clientsLock.Lock()
+				clients[conn] = nickname
+				clientsLock.Unlock()
 				// 닉네임 설정 성공 메시지 전송
 				response := "Your nickname is now set to: " + nickname + newline
 				_, err := conn.Write([]byte(response))
@@ -86,17 +92,17 @@ func handleClient(conn net.Conn) {
 				response := "Nickname already in use. Choose a different nickname." + newline
 				_, err := conn.Write([]byte(response))
 				if err != nil {
-					fmt.Println("Failed to send nickname in use message to client:", err)
+					fmt.Println("Failed to send nickname in use message to client: ", err)
 					return
 				}
 			}
-		} else if message == "/LIST" {
+		} else if message == ListCommand {
 			// 클라이언트 리스트와 닉네임 출력
 			clientList := getClientList()
-			response := "Client List:\n" + clientList + newline
+			response := "Client List: " + clientList + newline
 			_, err := conn.Write([]byte(response))
 			if err != nil {
-				fmt.Println("Failed to send client list to client:", err)
+				fmt.Println("Failed to send client list to client: ", err)
 				return
 			}
 		} else {
@@ -130,27 +136,6 @@ func handleClientDisconnect(conn net.Conn, nickname string) {
 	// 클라이언트 연결 종료 후 처리 로직 추가 (예: 닉네임 해제)
 }
 
-// broadcastMessage 함수를 정의하여 메시지를 모든 클라이언트에게 전송할 수 있습니다.
-func broadcastMessage(message, senderNickname string, senderConn net.Conn) {
-	clientsLock.Lock()
-	defer clientsLock.Unlock()
-
-	for clientConn, clientNickname := range clients {
-		if clientConn != nil && clientNickname != senderNickname {
-			_, err := clientConn.Write([]byte(senderNickname + ": " + message + newline))
-			if err != nil {
-				fmt.Println("Failed to send message to client:", err)
-			}
-		} else if clientConn == senderConn {
-			// 보낸 클라이언트에게도 메시지를 표시
-			_, err := clientConn.Write([]byte("You: " + message + newline))
-			if err != nil {
-				fmt.Println("Failed to send message to client:", err)
-			}
-		}
-	}
-}
-
 // 클라이언트 리스트와 닉네임을 가져오는 함수
 func getClientList() string {
 	clientsLock.Lock()
@@ -158,7 +143,13 @@ func getClientList() string {
 
 	clientList := ""
 	for _, clientNickname := range clients {
-		clientList += clientNickname + "\n"
+		clientList += clientNickname + " "
 	}
 	return clientList
+}
+
+func clearScreen() {
+	cmd := exec.Command("clear") // macOS 및 Linux에서 clear 명령어 실행
+	cmd.Stdout = os.Stdout
+	cmd.Run()
 }
