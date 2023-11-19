@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec" // exec 패키지 추가
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -157,9 +158,18 @@ func getClientList() string {
 }
 
 func clearScreen() {
-	cmd := exec.Command("clear") // macOS 및 Linux에서 clear 명령어 실행
-	cmd.Stdout = os.Stdout
-	cmd.Run()
+	switch runtime.GOOS {
+	case "darwin", "linux":
+		cmd := exec.Command("clear") // macOS 및 Linux에서 clear 명령어 실행
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+	case "windows":
+		cmd := exec.Command("cmd", "/c", "cls") // Windows에서 cls 명령어 실행
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+	default:
+		fmt.Println("Clear screen is not supported on this OS.")
+	}
 }
 
 // 클라이언트에게 받은 메시지를 모든 클라이언트에게 전송하는 함수
