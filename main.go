@@ -112,6 +112,24 @@ func handleClient(conn net.Conn) {
 		} else if strings.HasPrefix(message, BroadcastCommand) && hasNickname {
 			// 클라이언트가 /BC 명령어를 사용하면 메시지를 브로드캐스트합니다.
 			broadcastMessage(strings.TrimPrefix(message, BroadcastCommand), nickname, conn)
+		} else if strings.HasPrefix(message, MessageCommand) && hasNickname {
+			// /MSG 명령어 처리
+			parts := strings.SplitN(strings.TrimPrefix(message, MessageCommand), " ", 2)
+			if len(parts) != 2 {
+				response := "Usage: /MSG <nickname> <message>" + newline
+				_, err := conn.Write([]byte(response))
+				if err != nil {
+					fmt.Println("Failed to send usage message to client: ", err)
+					return
+				}
+				continue
+			}
+
+			recipientNickname := parts[0]
+			messageToSend := parts[1]
+
+			// 메시지를 해당 닉네임을 가진 클라이언트에게 전송
+			sendPrivateMessage(recipientNickname, messageToSend, nickname, conn)
 		} else {
 			response := "You need to set your nickname at first." + newline
 			_, err := conn.Write([]byte(response))
@@ -190,5 +208,28 @@ func broadcastMessage(message, senderNickname string, senderConn net.Conn) {
 				fmt.Println("Failed to send message to client: ", err)
 			}
 		}
+	}
+}
+
+func sendPrivateMessage(recipientNickname, message, senderNickname string, senderConn net.Conn) {
+	clientsLock.Lock()
+	defer clientsLock.Unlock()
+
+	for clientConn, clientNickname := range clients {
+		if clientConn != nil && clientNickname == recipientNickname {
+			// 메시지를 해당 닉네임을 가진 클라이언트에게 전송
+			_, err := clientConn.Write([]byte(senderNickname + " (private): " + message + newline))
+			if err != nil {
+				fmt.Println("Failed to send private message to client: ", err)
+			}
+			return
+		}
+	}
+
+	// 메시지를 받는 클라이언트가 없을 경우 경고 메시지 전송
+	response := "User " + recipientNickname + " not found or offline." + newline
+	_, err := senderConn.Write([]byte(response))
+	if err != nil {
+		fmt.Println("Failed to send private message to client: ", err)
 	}
 }
