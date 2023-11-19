@@ -3,14 +3,21 @@
 
 ### How to run
 #### Server
-go run server.go
+within server folder
+> go run server.go
 
 #### Client
-telnet localhost 6666
-java Main.java
+> telnet localhost 6666
+
+within client folder
+> java Main.java
 
 ### How to Terminate client
-Telnet: ctrl + ], quit
+for telnet connection
+> ctrl + ], quit
+
+other connection
+> ctrl + c
 
 ### Commands List
 - /LIST
