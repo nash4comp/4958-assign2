@@ -50,6 +50,7 @@ func handleClient(conn net.Conn) {
 	defer conn.Close()
 
 	var nickname string
+	hasNickname := false
 
 	// 클라이언트에게 연결 성공 메시지 안내 전송
 	welcomeMessage := "Welcome to the chat server! Use /NICK <nickname> to set your nickname.\n\r"
@@ -82,6 +83,7 @@ func handleClient(conn net.Conn) {
 				clientsLock.Unlock()
 				// 닉네임 설정 성공 메시지 전송
 				response := "Your nickname is now set to: " + nickname + newline
+				hasNickname = true
 				_, err := conn.Write([]byte(response))
 				if err != nil {
 					fmt.Println("Failed to send nickname confirmation to client:", err)
@@ -96,7 +98,7 @@ func handleClient(conn net.Conn) {
 					return
 				}
 			}
-		} else if message == ListCommand {
+		} else if message == ListCommand && hasNickname {
 			// 클라이언트 리스트와 닉네임 출력
 			clientList := getClientList()
 			response := "Client List: " + clientList + newline
@@ -106,10 +108,12 @@ func handleClient(conn net.Conn) {
 				return
 			}
 		} else {
-			// 닉네임 설정 완료된 후에는 다른 메시지를 처리 (예: 브로드캐스트)
-			// 이 부분에 메시지 처리 로직을 추가하세요.
-			// broadcastMessage 함수를 호출하거나 다른 로직을 구현하여 메시지를 처리합니다.
-			// 예: broadcastMessage(message, nickname, conn)
+			response := "You need to set your nickname at first." + newline
+			_, err := conn.Write([]byte(response))
+			if err != nil {
+				fmt.Println("Failed to send nickname in use message to client: ", err)
+				return
+			}
 		}
 	}
 }
